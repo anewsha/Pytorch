@@ -18,27 +18,81 @@ from torch.utils.data import DataLoader
 from torchvision import datasets
 from torchvision.transforms import ToTensor
 
+#1. DOWNLOAD DATASET 
+#2. DEFINE DATALOADERS 
+#3. DEFINE CLASS NEURAL NET
+#4. CHECK DEVICE 
+#5. WRITE TRAIN FUNCTION: loss, optimizer 
+#5. save model
+
+def download_datasets():
+  train_data = datasets.MNIST(
+      root="data",
+      download=True ,#if not downloaded then download
+      train=True, #I am interested in trainset of the data
+      transform=ToTensor()#reshapes the new tensor to get the value between 0-1
+  )
+
+  test_data = datasets.MNIST(
+      root="data",
+      download = True,
+      train=False,
+      transform=ToTensor()
+  )
+  return train_data, test_data
+
+
+"""### Network"""
+
+class FeedForward(nn.Module): #inherit from Module
+#define the layers in init
+  def __init__(self):
+    super().__init__()
+    self.flatten = nn.Flatten()
+    self.dense_layers = nn.Sequential(
+        nn.Linear(28*28, 256),
+        nn.ReLU(),
+        nn.Linear(256,10) # I have 10 classes
+    )
+    self.softmax = nn.Softmax(dim=1)
+
+# Define the forward path of my data
+  def forward(self, inp_data):
+    flattened_data = self.flatten(inp_data)
+    logits = self.dense_layers(flattened_data)
+    predictions = self.softmax(logits)
+    return predictions
+
+
+"""### Training"""
+
+def train_one_epoch(model, data_loader, loss_func, optimizer, device):
+
+  for data, label in data_loader:
+
+    #model and label needs to be in same device
+    data,label = data.to(device), label.to(device)
+
+    #loss
+    predictions = model(data)
+    loss = loss_func(predictions, label)
+
+    #back propogation to calulate grad decent to update the weights
+    optimizer.zero_grad()     #... to reset the gradients
+    loss.backward()           #... calculate the gradients
+    optimizer.step()          #... Update the weights
+
+  print(f"Loss = {loss.item()}")
+
+def train(model, data_loader, loss_func, optimizer, device, epochs):
+  for i in range(epochs):
+    print(f"Epoch {i+1}  =", train_one_epoch(model, data_loader, loss_func, optimizer, device))
+
+
 if __name__ =="__main__":
-
-  def download_datasets():
-    train_data = datasets.MNIST(
-        root="data",
-        download=True ,#if not downloaded then download
-        train=True, #I am interested in trainset of the data
-        transform=ToTensor()#reshapes the new tensor to get the value between 0-1
-    )
-
-    test_data = datasets.MNIST(
-        root="data",
-        download = True,
-        train=False,
-        transform=ToTensor()
-    )
-    return train_data, test_data
-
   train_data, test_data = download_datasets()
 
-
+  
   """we have now downloaded the dataset
 
   ### Dataloader
@@ -53,7 +107,6 @@ if __name__ =="__main__":
       test_data,
       batch_size = 128
   )
-
   # !!concept!!
   for image, label in train_DataLoader:
     print(image[0].shape)
@@ -63,27 +116,6 @@ if __name__ =="__main__":
   # !!concept!!
   # len(train_DataLoader)
   # 60000/128
-
-  """### Network"""
-
-  class FeedForward(nn.Module): #inherit from Module
-  #define the layers in init
-    def __init__(self):
-      super().__init__()
-      self.flatten = nn.Flatten()
-      self.dense_layers = nn.Sequential(
-          nn.Linear(28*28, 256),
-          nn.ReLU(),
-          nn.Linear(256,10) # I have 10 classes
-      )
-      self.softmax = nn.Softmax(dim=1)
-
-  # Define the forward path of my data
-    def forward(self, inp_data):
-      flattened_data = self.flatten(inp_data)
-      logits = self.dense_layers(flattened_data)
-      predictions = self.softmax(logits)
-      return predictions
 
   """#### Device"""
 
@@ -95,30 +127,6 @@ if __name__ =="__main__":
 
   feed_fwd_net = FeedForward().to(device)
 
-  """### Training"""
-
-  def train_one_epoch(model, data_loader, loss_func, optimizer, device):
-
-    for data, label in data_loader:
-
-      #model and label needs to be in same device
-      data,label = data.to(device), label.to(device)
-
-      #loss
-      predictions = model(data)
-      loss = loss_func(predictions, label)
-
-      #back propogation to calulate grad decent to update the weights
-      optimizer.zero_grad()     #... to reset the gradients
-      loss.backward()           #... calculate the gradients
-      optimizer.step()          #... Update the weights
-
-    print(f"Loss = {loss.item()}")
-
-  def train(model, data_loader, loss_func, optimizer, device, epochs):
-    for i in range(epochs):
-      print(f"Epoch {i+1}  =", train_one_epoch(model, data_loader, loss_func, optimizer, device))
-
   # feed_fwd_net = FeedForward().to(device)   #...model
   # train_DataLoader
   loss_func = nn.CrossEntropyLoss()
@@ -129,5 +137,4 @@ if __name__ =="__main__":
 
   torch.save(feed_fwd_net.state_dict(), "feed_fwd_net.pth")
   print("saved")
-
 
